@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vishal Special invoice maker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700&family=Cormorant+Garamond:wght@600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="authOverlay" class="auth-overlay">
+      <div class="auth-card">
+        <p class="eyebrow">Protected</p>
+        <h2>Enter password</h2>
+        <p class="subtext">This invoice maker requires a password before opening.</p>
+        <form id="authForm" class="auth-form">
+          <label>
+            Password
+            <input id="passwordInput" type="password" autocomplete="current-password" />
+          </label>
+          <p id="authError" class="auth-error"></p>
+          <button class="btn primary" type="submit">Open app</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="page-shell">
+      <aside class="panel controls-panel">
+        <div class="panel-header">
+          <p class="eyebrow">Free tool</p>
+          <h1>Vishal Special invoice maker</h1>
+          <p class="subtext">
+            Build invoices from saved products and customers, then save the invoice
+            and export it as PDF with the browser print dialog.
+          </p>
+        </div>
+
+        <section class="workspace-actions">
+          <button id="newInvoiceBtn" class="btn primary" type="button">New invoice</button>
+          <button id="saveInvoiceBtn" class="btn secondary" type="button">Save invoice</button>
+          <button id="downloadPdfBtn" class="btn ghost" type="button">Print / PDF</button>
+        </section>
+
+        <nav class="tab-bar" aria-label="App sections">
+          <button class="tab-btn active" type="button" data-tab="billing">Billing</button>
+          <button class="tab-btn" type="button" data-tab="products">Products</button>
+          <button class="tab-btn" type="button" data-tab="customers">Customers</button>
+          <button class="tab-btn" type="button" data-tab="invoices">Invoices</button>
+        </nav>
+
+        <form id="invoiceForm" class="form-grid">
+          <div class="tab-panel active" data-panel="billing">
+            <section class="form-section summary-strip">
+              <div class="stat-card">
+                <span class="tiny-label">Invoice no.</span>
+                <strong id="billingInvoiceNo"></strong>
+              </div>
+              <div class="stat-card">
+                <span class="tiny-label">Date</span>
+                <strong id="billingInvoiceDate"></strong>
+              </div>
+              <div class="stat-card">
+                <span class="tiny-label">Customer</span>
+                <strong id="billingCustomerName"></strong>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Quick billing</h2>
+                <div class="section-actions">
+                  <button id="todayBtn" class="btn mini secondary" type="button">Today</button>
+                  <button id="autoInvoiceNoBtn" class="btn mini ghost" type="button">Auto invoice no.</button>
+                </div>
+              </div>
+              <div class="two-col">
+                <label>
+                  Customer
+                  <select id="customerSelect" name="selectedCustomerId"></select>
+                </label>
+                <label>
+                  Invoice date
+                  <input name="invoiceDate" type="text" />
+                </label>
+              </div>
+              <div class="two-col">
+                <label>
+                  Invoice no.
+                  <input name="invoiceNo" type="text" />
+                </label>
+                <label>
+                  Payment terms
+                  <input name="paymentTerms" type="text" />
+                </label>
+              </div>
+              <div class="two-col">
+                <label>
+                  Series code
+                  <input id="invoiceSeriesInput" type="text" />
+                </label>
+                <label>
+                  Next counter
+                  <input id="nextCounterInput" type="number" min="1" step="1" />
+                </label>
+              </div>
+              <p class="tiny-label no-margin" id="invoicePatternHint"></p>
+            </section>
+
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Items</h2>
+                <button id="addLineItemBtn" class="btn mini" type="button">Add line</button>
+              </div>
+              <div id="itemsEditor" class="items-editor"></div>
+            </section>
+
+            <details class="form-section collapsible-section">
+              <summary>Customer details</summary>
+              <div class="details-body">
+                <div class="two-col">
+                  <label>
+                    Bill to name
+                    <input name="buyerName" type="text" />
+                  </label>
+                  <label>
+                    Contact person
+                    <input name="buyerContactPerson" type="text" />
+                  </label>
+                </div>
+                <label>
+                  Bill to address
+                  <textarea name="buyerAddress" rows="3"></textarea>
+                </label>
+                <div class="two-col">
+                  <label>
+                    GSTIN/UIN
+                    <input name="buyerGstin" type="text" />
+                  </label>
+                  <label>
+                    Contact
+                    <input name="buyerContact" type="text" />
+                  </label>
+                </div>
+                <div class="two-col">
+                  <label>
+                    Ship to name
+                    <input name="consigneeName" type="text" />
+                  </label>
+                  <label>
+                    Place of supply
+                    <input name="placeOfSupply" type="text" />
+                  </label>
+                </div>
+                <label>
+                  Ship to address
+                  <textarea name="consigneeAddress" rows="3"></textarea>
+                </label>
+                <div class="two-col">
+                  <label>
+                    Ship to GSTIN/UIN
+                    <input name="consigneeGstin" type="text" />
+                  </label>
+                  <label>
+                    Ship to contact
+                    <input name="consigneeContact" type="text" />
+                  </label>
+                </div>
+              </div>
+            </details>
+
+            <details class="form-section collapsible-section">
+              <summary>Company and extra settings</summary>
+              <div class="details-body">
+                <label>
+                  Company name
+                  <input name="sellerName" type="text" />
+                </label>
+                <label>
+                  Address
+                  <textarea name="sellerAddress" rows="3"></textarea>
+                </label>
+                <div class="two-col">
+                  <label>
+                    GSTIN/UIN
+                    <input name="sellerGstin" type="text" />
+                  </label>
+                  <label>
+                    State / code
+                    <input name="sellerState" type="text" />
+                  </label>
+                </div>
+                <div class="two-col">
+                  <label>
+                    License
+                    <input name="sellerLicense" type="text" />
+                  </label>
+                  <label>
+                    Email
+                    <input name="sellerEmail" type="text" />
+                  </label>
+                </div>
+                <label>
+                  PAN
+                  <input name="sellerPan" type="text" />
+                </label>
+                <div class="two-col">
+                  <label>
+                    Account holder
+                    <input name="bankHolder" type="text" />
+                  </label>
+                  <label>
+                    Bank name
+                    <input name="bankName" type="text" />
+                  </label>
+                </div>
+                <div class="two-col">
+                  <label>
+                    Account no.
+                    <input name="bankAccountNo" type="text" />
+                  </label>
+                  <label>
+                    Branch / IFSC
+                    <input name="bankBranchIfsc" type="text" />
+                  </label>
+                </div>
+                <label>
+                  Declaration
+                  <textarea name="declaration" rows="3"></textarea>
+                </label>
+                <label>
+                  Footer note
+                  <input name="footerNote" type="text" />
+                </label>
+                <label>
+                  Signatory label
+                  <input name="signatoryLabel" type="text" />
+                </label>
+                <div class="two-col">
+                  <label>
+                    Buyer order no.
+                    <input name="buyerOrderNo" type="text" />
+                  </label>
+                  <label>
+                    Buyer order date
+                    <input name="buyerOrderDate" type="text" />
+                  </label>
+                </div>
+                <div class="two-col">
+                  <label>
+                    Reference
+                    <input name="referenceNo" type="text" />
+                  </label>
+                  <label>
+                    Delivery note
+                    <input name="deliveryNote" type="text" />
+                  </label>
+                </div>
+                <div class="two-col">
+                  <label>
+                    Destination
+                    <input name="destination" type="text" />
+                  </label>
+                  <label>
+                    Document title
+                    <input name="documentTitle" type="text" />
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div class="tab-panel" data-panel="products">
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Product catalog</h2>
+                <button id="addProductBtn" class="btn mini secondary" type="button">Add product</button>
+              </div>
+              <div class="catalog-form-grid">
+                <label>
+                  Product name
+                  <input id="productName" type="text" />
+                </label>
+                <label>
+                  HSN/SAC
+                  <input id="productHsn" type="text" />
+                </label>
+                <label>
+                  Rate
+                  <input id="productRate" type="number" min="0" step="0.01" />
+                </label>
+                <label>
+                  Unit
+                  <input id="productUnit" type="text" />
+                </label>
+                <label>
+                  Tax %
+                  <input id="productTaxRate" type="number" min="0" step="0.01" />
+                </label>
+                <label class="catalog-wide">
+                  Description
+                  <textarea id="productDescription" rows="2"></textarea>
+                </label>
+              </div>
+              <div id="productsList" class="saved-list compact-list"></div>
+            </section>
+          </div>
+
+          <div class="tab-panel" data-panel="customers">
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Customer catalog</h2>
+                <button id="addCustomerBtn" class="btn mini secondary" type="button">Add customer</button>
+              </div>
+              <div class="catalog-form-grid">
+                <label>
+                  Customer name
+                  <input id="customerName" type="text" />
+                </label>
+                <label>
+                  Contact person
+                  <input id="customerContactPerson" type="text" />
+                </label>
+                <label class="catalog-wide">
+                  Billing address
+                  <textarea id="customerBillingAddress" rows="2"></textarea>
+                </label>
+                <label class="catalog-wide">
+                  Shipping address
+                  <textarea id="customerShippingAddress" rows="2"></textarea>
+                </label>
+                <label>
+                  GSTIN/UIN
+                  <input id="customerGstin" type="text" />
+                </label>
+                <label>
+                  Contact
+                  <input id="customerContact" type="text" />
+                </label>
+                <label>
+                  Place of supply
+                  <input id="customerPlaceOfSupply" type="text" />
+                </label>
+              </div>
+              <div id="customersList" class="saved-list compact-list"></div>
+            </section>
+          </div>
+
+          <div class="tab-panel" data-panel="invoices">
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Saved invoices</h2>
+                <div class="section-actions">
+                  <span id="savedInvoiceCount" class="tiny-label"></span>
+                  <button id="loadSampleBtn" class="btn mini ghost" type="button">Load sample</button>
+                </div>
+              </div>
+              <div id="savedInvoicesList" class="saved-list"></div>
+            </section>
+          </div>
+        </form>
+      </aside>
+
+      <main class="panel preview-panel">
+        <div class="preview-toolbar">
+          <span>Live invoice preview</span>
+          <span id="grandTotalChip" class="total-chip"></span>
+        </div>
+
+        <article id="invoicePreview" class="invoice-sheet">
+          <header class="invoice-top">
+            <div>
+              <p id="previewDocumentTitle" class="document-title"></p>
+              <h2 id="previewSellerName" class="seller-name"></h2>
+              <p id="previewSellerLicense" class="muted-line"></p>
+              <p id="previewSellerAddress"></p>
+              <p><strong>GSTIN/UIN:</strong> <span id="previewSellerGstin"></span></p>
+              <p><strong>State:</strong> <span id="previewSellerState"></span></p>
+              <p><strong>Email:</strong> <span id="previewSellerEmail"></span></p>
+            </div>
+            <table class="meta-table">
+              <tbody>
+                <tr><th>Invoice No.</th><td id="previewInvoiceNo"></td></tr>
+                <tr><th>Dated</th><td id="previewInvoiceDate"></td></tr>
+                <tr><th>Buyer Order No.</th><td id="previewBuyerOrderNo"></td></tr>
+                <tr><th>Buyer Order Date</th><td id="previewBuyerOrderDate"></td></tr>
+                <tr><th>Reference</th><td id="previewReferenceNo"></td></tr>
+                <tr><th>Delivery Note</th><td id="previewDeliveryNote"></td></tr>
+                <tr><th>Payment Terms</th><td id="previewPaymentTerms"></td></tr>
+                <tr><th>Destination</th><td id="previewDestination"></td></tr>
+              </tbody>
+            </table>
+          </header>
+
+          <section class="party-grid">
+            <div class="party-box">
+              <p class="box-title">Consignee (Ship to)</p>
+              <h3 id="previewConsigneeName"></h3>
+              <p id="previewConsigneeAddress"></p>
+              <p><strong>GSTIN/UIN:</strong> <span id="previewConsigneeGstin"></span></p>
+              <p><strong>Contact person:</strong> <span id="previewConsigneeContactPerson"></span></p>
+              <p><strong>Contact:</strong> <span id="previewConsigneeContact"></span></p>
+            </div>
+            <div class="party-box">
+              <p class="box-title">Buyer (Bill to)</p>
+              <h3 id="previewBuyerName"></h3>
+              <p id="previewBuyerAddress"></p>
+              <p><strong>GSTIN/UIN:</strong> <span id="previewBuyerGstin"></span></p>
+              <p><strong>Place of Supply:</strong> <span id="previewPlaceOfSupply"></span></p>
+              <p><strong>Contact person:</strong> <span id="previewBuyerContactPerson"></span></p>
+              <p><strong>Contact:</strong> <span id="previewBuyerContact"></span></p>
+            </div>
+          </section>
+
+          <section>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Sl.</th>
+                  <th>Description of Goods</th>
+                  <th>HSN/SAC</th>
+                  <th>Qty</th>
+                  <th>Rate</th>
+                  <th>Per</th>
+                  <th>Tax %</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="previewItemsBody"></tbody>
+            </table>
+          </section>
+
+          <section class="summary-grid">
+            <div class="words-box">
+              <p class="box-title">Amount Chargeable (in words)</p>
+              <p id="previewAmountWords"></p>
+              <p class="box-title tax-words">Tax Amount (in words)</p>
+              <p id="previewTaxWords"></p>
+            </div>
+            <div class="totals-box">
+              <table class="totals-table">
+                <tbody>
+                  <tr><th>Subtotal</th><td id="previewSubtotal"></td></tr>
+                  <tr><th>Tax</th><td id="previewTaxTotal"></td></tr>
+                  <tr class="grand-row"><th>Grand Total</th><td id="previewGrandTotal"></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="tax-breakup">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>HSN/SAC</th>
+                  <th>Taxable Value</th>
+                  <th>Tax Rate</th>
+                  <th>Tax Amount</th>
+                </tr>
+              </thead>
+              <tbody id="previewTaxBreakup"></tbody>
+            </table>
+          </section>
+
+          <footer class="invoice-footer">
+            <div class="footer-box">
+              <p class="box-title">Declaration</p>
+              <p id="previewDeclaration"></p>
+              <p><strong>Company PAN:</strong> <span id="previewSellerPan"></span></p>
+            </div>
+            <div class="footer-box bank-box">
+              <p class="box-title">Company's Bank Details</p>
+              <p><strong>A/c Holder's Name:</strong> <span id="previewBankHolder"></span></p>
+              <p><strong>Bank Name:</strong> <span id="previewBankName"></span></p>
+              <p><strong>A/c No.:</strong> <span id="previewBankAccountNo"></span></p>
+              <p><strong>Branch & IFSC:</strong> <span id="previewBankBranchIfsc"></span></p>
+              <div class="signature-area">
+                <p>for <span id="previewSignatureCompany"></span></p>
+                <div class="signature-line"></div>
+                <p id="previewSignatoryLabel"></p>
+              </div>
+            </div>
+          </footer>
+
+          <div class="sheet-bottom">
+            <p>Customer's Seal and Signature</p>
+            <p id="previewFooterNote"></p>
+          </div>
+        </article>
+      </main>
+    </div>
+
+    <template id="itemEditorTemplate">
+      <div class="item-editor-card">
+        <div class="item-card-head">
+          <strong class="item-index"></strong>
+          <button class="btn mini danger remove-item-btn" type="button">Remove</button>
+        </div>
+        <label>
+          Choose product
+          <select data-field="productId" class="item-product-select"></select>
+        </label>
+        <label>
+          Description
+          <textarea data-field="description" rows="2"></textarea>
+        </label>
+        <div class="item-grid">
+          <label>
+            HSN/SAC
+            <input data-field="hsn" type="text" />
+          </label>
+          <label>
+            Quantity
+            <input data-field="quantity" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            Rate
+            <input data-field="rate" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            Per
+            <input data-field="unit" type="text" />
+          </label>
+          <label>
+            Tax %
+            <input data-field="taxRate" type="number" min="0" step="0.01" />
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

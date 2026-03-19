@@ -1,0 +1,612 @@
+:root {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel-border: #d9d9d9;
+  --ink: #000000;
+  --muted: #444444;
+  --line: #bfbfbf;
+  --sheet: #ffffff;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Libre Franklin", sans-serif;
+  color: var(--ink);
+  background: #ffffff;
+}
+
+body.locked {
+  overflow: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.page-shell {
+  display: grid;
+  grid-template-columns: minmax(390px, 520px) 1fr;
+  min-height: 100vh;
+  gap: 20px;
+  padding: 20px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  z-index: 1000;
+}
+
+.auth-overlay.visible {
+  display: flex;
+}
+
+.auth-card {
+  width: min(100%, 420px);
+  padding: 26px;
+  border: 1px solid #d9d9d9;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.auth-card h2 {
+  margin: 0 0 8px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.auth-error {
+  min-height: 18px;
+  margin: 0;
+  color: #b00020;
+  font-size: 0.85rem;
+}
+
+.controls-panel {
+  padding: 22px;
+  overflow: auto;
+}
+
+.preview-panel {
+  padding: 18px;
+  overflow: auto;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #000000;
+  font-size: 0.74rem;
+  margin: 0 0 6px;
+}
+
+.panel-header h1 {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.subtext {
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+.workspace-actions,
+.tab-bar,
+.section-head,
+.section-actions,
+.preview-toolbar,
+.item-card-head,
+.saved-card,
+.saved-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace-actions {
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+
+.tab-bar {
+  gap: 8px;
+  margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  border: 1px solid #d0d0d0;
+  background: #ffffff;
+  color: #000000;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.btn {
+  border: 1px solid #bdbdbd;
+  border-radius: 999px;
+  padding: 10px 15px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  color: #000000;
+}
+
+.btn.primary {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.btn.secondary,
+.btn.ghost,
+.btn.danger {
+  background: #f5f5f5;
+}
+
+.btn.mini {
+  padding: 7px 11px;
+  font-size: 0.85rem;
+}
+
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.tab-panel {
+  display: none;
+  gap: 16px;
+}
+
+.tab-panel.active {
+  display: grid;
+}
+
+.form-section {
+  padding: 18px;
+  border: 1px solid #d9d9d9;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.form-section h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid #cfcfcf;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+textarea {
+  resize: vertical;
+}
+
+.two-col,
+.item-grid,
+.catalog-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.catalog-wide {
+  grid-column: 1 / -1;
+}
+
+.saved-list {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stat-card {
+  padding: 12px 14px;
+  border: 1px solid #d9d9d9;
+  border-radius: 14px;
+  background: #fafafa;
+}
+
+.stat-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.96rem;
+}
+
+.compact-list {
+  margin-top: 10px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.saved-card {
+  padding: 12px 14px;
+  border: 1px solid #d9d9d9;
+  border-radius: 14px;
+  align-items: flex-start;
+}
+
+.saved-card p,
+.empty-state {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.83rem;
+  line-height: 1.35;
+}
+
+.tiny-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.no-margin {
+  margin: 0;
+}
+
+.items-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.item-editor-card {
+  padding: 14px;
+  border: 1px solid #d9d9d9;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.preview-toolbar {
+  margin-bottom: 14px;
+  color: var(--muted);
+}
+
+.total-chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #f5f5f5;
+  color: #000000;
+  font-weight: 700;
+}
+
+.invoice-sheet {
+  width: min(100%, 900px);
+  margin: 0 auto;
+  padding: 30px;
+  background: var(--sheet);
+  border: 1px solid #d9d9d9;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.invoice-top,
+.party-grid,
+.summary-grid,
+.invoice-footer,
+.sheet-bottom {
+  display: grid;
+  gap: 16px;
+}
+
+.invoice-top {
+  grid-template-columns: 1.4fr 1fr;
+}
+
+.document-title {
+  margin: 0 0 6px;
+  color: #000000;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.seller-name {
+  margin: 0 0 10px;
+  font-family: "Cormorant Garamond", serif;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.muted-line,
+.box-title {
+  color: var(--muted);
+}
+
+.meta-table,
+.items-table,
+.totals-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.meta-table th,
+.meta-table td,
+.items-table th,
+.items-table td,
+.totals-table th,
+.totals-table td {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.9rem;
+}
+
+.meta-table th,
+.items-table th,
+.totals-table th {
+  width: 38%;
+  background: #ffffff;
+}
+
+.party-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 18px 0;
+}
+
+.party-box,
+.words-box,
+.totals-box,
+.footer-box {
+  border: 1px solid var(--line);
+  padding: 14px;
+}
+
+.party-box h3 {
+  margin: 2px 0 8px;
+  font-size: 1.02rem;
+}
+
+.summary-grid {
+  grid-template-columns: 1.3fr 0.8fr;
+  margin-top: 18px;
+}
+
+.grand-row th,
+.grand-row td {
+  font-weight: 700;
+}
+
+.tax-breakup {
+  margin-top: 18px;
+}
+
+.tax-words {
+  margin-top: 20px;
+}
+
+.invoice-footer {
+  grid-template-columns: 1.15fr 1fr;
+  margin-top: 18px;
+}
+
+.bank-box {
+  display: grid;
+  gap: 6px;
+}
+
+.signature-area {
+  margin-top: 18px;
+  padding-top: 8px;
+  text-align: right;
+}
+
+.signature-line {
+  height: 54px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+
+.sheet-bottom {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.collapsible-section summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.collapsible-section[open] summary {
+  margin-bottom: 14px;
+}
+
+.details-body {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 1200px) {
+  .page-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .invoice-sheet {
+    padding: 20px;
+  }
+
+  .invoice-top,
+  .party-grid,
+  .summary-grid,
+  .invoice-footer,
+  .sheet-bottom,
+  .summary-strip,
+  .two-col,
+  .item-grid,
+  .catalog-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-actions,
+  .saved-card,
+  .saved-card-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 6mm;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .controls-panel,
+  .preview-toolbar {
+    display: none !important;
+  }
+
+  .page-shell {
+    display: block;
+    padding: 0;
+  }
+
+  .preview-panel,
+  .panel,
+  .invoice-sheet {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100%;
+    max-width: none;
+    background: #ffffff;
+  }
+
+  .invoice-sheet {
+    padding: 8mm 7mm;
+    min-height: 0;
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  .invoice-top,
+  .party-grid,
+  .summary-grid,
+  .invoice-footer,
+  .sheet-bottom {
+    gap: 8px;
+  }
+
+  .party-grid,
+  .summary-grid,
+  .invoice-footer,
+  .tax-breakup,
+  .sheet-bottom {
+    margin-top: 10px;
+  }
+
+  .document-title {
+    font-size: 0.64rem;
+    margin-bottom: 2px;
+  }
+
+  .seller-name {
+    font-size: 1.45rem;
+    margin-bottom: 6px;
+  }
+
+  .meta-table th,
+  .meta-table td,
+  .items-table th,
+  .items-table td,
+  .totals-table th,
+  .totals-table td {
+    padding: 4px 6px;
+    font-size: 0.68rem;
+    line-height: 1.12;
+  }
+
+  .party-box,
+  .words-box,
+  .totals-box,
+  .footer-box {
+    padding: 8px;
+  }
+
+  .party-box h3 {
+    font-size: 0.82rem;
+    margin: 0 0 4px;
+  }
+
+  .invoice-sheet p,
+  .box-title,
+  .sheet-bottom {
+    font-size: 0.66rem;
+    line-height: 1.12;
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
+
+  .signature-area {
+    margin-top: 8px;
+    padding-top: 0;
+  }
+
+  .signature-line {
+    height: 24px;
+    margin-bottom: 4px;
+  }
+}
