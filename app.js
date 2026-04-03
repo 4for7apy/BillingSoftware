@@ -1,6 +1,7 @@
-const STORAGE_KEY = "vishal-special-invoice-maker-v4";
+const STORAGE_KEY = "vishal-special-invoice-maker-v6";
 const ACCESS_PASSWORD = "arpit";
 const ACCESS_SESSION_KEY = "vishal-special-access";
+const CLOUD_SAVE_API_PATH = "/api/save-invoice";
 const DEFAULT_BANK_DETAILS = {
   bankHolder: "Urmila Enterprises",
   bankName: "State Bank of India",
@@ -85,6 +86,31 @@ function blankItem() {
     rate: 0,
     unit: "NOS",
     taxRate: 0,
+    costRate: 0,
+  };
+}
+
+function blankPurchaseItem() {
+  return {
+    productId: "",
+    description: "",
+    quantity: 1,
+    rate: 0,
+    unit: "NOS",
+  };
+}
+
+function defaultPurchaseBill() {
+  return {
+    id: createId("purchase"),
+    supplierName: "",
+    supplierContact: "",
+    supplierAddress: "",
+    purchaseDate: formatCurrentDate(),
+    purchaseBillNo: `PB-${Date.now().toString().slice(-6)}`,
+    notes: "",
+    items: [blankPurchaseItem()],
+    savedAt: "",
   };
 }
 
@@ -138,6 +164,7 @@ const sampleData = {
   settings: {
     invoiceSeries: "UE",
     nextInvoiceSequence: 1,
+    cloudSavedInvoiceNos: [],
   },
   products: [
     {
@@ -146,6 +173,7 @@ const sampleData = {
       description: "Bastar Farms-Tamarind Pulp-6.5Kg (Bkt)",
       hsn: "21039090",
       rate: 780,
+      purchaseRate: 540,
       unit: "NOS",
       taxRate: 5,
     },
@@ -165,7 +193,9 @@ const sampleData = {
     },
   ],
   invoices: [],
+  purchaseBills: [],
   currentInvoice: defaultInvoice(),
+  currentPurchaseBill: defaultPurchaseBill(),
 };
 
 sampleData.currentInvoice = {
@@ -203,6 +233,7 @@ sampleData.currentInvoice = {
       rate: 780,
       unit: "NOS",
       taxRate: 5,
+      costRate: 540,
     },
   ],
   bankHolder: "Urmila Enterprises",
@@ -213,13 +244,17 @@ sampleData.currentInvoice = {
 };
 
 let appState = loadState();
+let editingProductId = null;
 
 const form = document.getElementById("invoiceForm");
 const itemsEditor = document.getElementById("itemsEditor");
 const itemTemplate = document.getElementById("itemEditorTemplate");
+const purchaseItemsEditor = document.getElementById("purchaseItemsEditor");
+const purchaseItemTemplate = document.getElementById("purchaseItemEditorTemplate");
 const grandTotalChip = document.getElementById("grandTotalChip");
 const customerSelect = document.getElementById("customerSelect");
 const savedInvoicesList = document.getElementById("savedInvoicesList");
+const savedPurchasesList = document.getElementById("savedPurchasesList");
 const productsList = document.getElementById("productsList");
 const customersList = document.getElementById("customersList");
 const invoiceSeriesInput = document.getElementById("invoiceSeriesInput");
@@ -231,6 +266,18 @@ const authOverlay = document.getElementById("authOverlay");
 const authForm = document.getElementById("authForm");
 const passwordInput = document.getElementById("passwordInput");
 const authError = document.getElementById("authError");
+const invoicePreview = document.getElementById("invoicePreview");
+const purchasePreview = document.getElementById("purchasePreview");
+const productEditHint = document.getElementById("productEditHint");
+const importJsonInput = document.getElementById("importJsonInput");
+const purchaseFieldIds = [
+  "purchaseSupplierName",
+  "purchaseSupplierContact",
+  "purchaseSupplierAddress",
+  "purchaseDate",
+  "purchaseBillNo",
+  "purchaseNotes",
+];
 
 const invoiceFieldNames = [
   "selectedCustomerId",
@@ -294,6 +341,14 @@ document.getElementById("saveInvoiceBtn").addEventListener("click", () => {
   saveCurrentInvoice();
 });
 
+document.getElementById("saveCloudBtn").addEventListener("click", async () => {
+  await saveInvoiceToCloud();
+});
+
+document.getElementById("importJsonBtn").addEventListener("click", () => {
+  importJsonInput.click();
+});
+
 document.getElementById("loadSampleBtn").addEventListener("click", () => {
   appState = structuredClone(sampleData);
   persistState();
@@ -302,6 +357,28 @@ document.getElementById("loadSampleBtn").addEventListener("click", () => {
 
 document.getElementById("downloadPdfBtn").addEventListener("click", () => {
   window.print();
+});
+
+document.getElementById("newPurchaseBtn").addEventListener("click", () => {
+  appState.currentPurchaseBill = defaultPurchaseBill();
+  persistState();
+  renderPurchaseSection();
+});
+
+document.getElementById("savePurchaseBtn").addEventListener("click", () => {
+  saveCurrentPurchaseBill();
+});
+
+document.getElementById("printPurchaseBtn").addEventListener("click", () => {
+  setActiveTab("purchases");
+  window.print();
+});
+
+document.getElementById("addPurchaseItemBtn").addEventListener("click", () => {
+  appState.currentPurchaseBill.items.push(blankPurchaseItem());
+  persistState();
+  renderPurchaseItemsEditor();
+  renderPurchasePreview();
 });
 
 authForm.addEventListener("submit", (event) => {
@@ -328,6 +405,10 @@ document.getElementById("autoInvoiceNoBtn").addEventListener("click", () => {
 
 document.getElementById("addProductBtn").addEventListener("click", () => {
   createProductFromForm();
+});
+
+document.getElementById("cancelProductEditBtn").addEventListener("click", () => {
+  resetProductEditor();
 });
 
 document.getElementById("addCustomerBtn").addEventListener("click", () => {
@@ -396,6 +477,40 @@ form.addEventListener("input", (event) => {
   renderPreview();
 });
 
+purchaseFieldIds.forEach((id) => {
+  document.getElementById(id).addEventListener("input", (event) => {
+    const keyMap = {
+      purchaseSupplierName: "supplierName",
+      purchaseSupplierContact: "supplierContact",
+      purchaseSupplierAddress: "supplierAddress",
+      purchaseDate: "purchaseDate",
+      purchaseBillNo: "purchaseBillNo",
+      purchaseNotes: "notes",
+    };
+    appState.currentPurchaseBill[keyMap[id]] = event.target.value;
+    persistState();
+    renderPurchasePreview();
+  });
+});
+
+importJsonInput.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    importInvoiceFromJson(parsed);
+    window.alert("Invoice imported successfully.");
+  } catch (error) {
+    window.alert(`Import failed: ${error.message}`);
+  } finally {
+    importJsonInput.value = "";
+  }
+});
+
 function loadState() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) {
@@ -411,6 +526,9 @@ function loadState() {
       Array.isArray(parsed.customers) &&
       parsed.currentInvoice
     ) {
+      parsed.settings.cloudSavedInvoiceNos = parsed.settings.cloudSavedInvoiceNos || [];
+      parsed.purchaseBills = parsed.purchaseBills || [];
+      parsed.currentPurchaseBill = parsed.currentPurchaseBill || defaultPurchaseBill();
       migrateLegacyDefaults(parsed);
       return parsed;
     }
@@ -445,6 +563,18 @@ function migrateLegacyDefaults(state) {
     }
     if (!invoice.bankBranchIfsc || invoice.bankBranchIfsc === oldValues.bankBranchIfsc) {
       invoice.bankBranchIfsc = DEFAULT_BANK_DETAILS.bankBranchIfsc;
+    }
+    (invoice.items || []).forEach((item) => {
+      if (typeof item.costRate !== "number") {
+        const product = (state.products || []).find((entry) => entry.id === item.productId);
+        item.costRate = Number(product?.purchaseRate || 0);
+      }
+    });
+  });
+
+  (state.products || []).forEach((product) => {
+    if (typeof product.purchaseRate !== "number") {
+      product.purchaseRate = 0;
     }
   });
 }
@@ -486,6 +616,147 @@ function pickSellerFields(invoice) {
   };
 }
 
+function importInvoiceFromJson(data) {
+  if (!data) {
+    throw new Error("This file is not a supported invoice JSON.");
+  }
+
+  if (data.type !== "invoice" && !data.invoiceNo && !data.sellerName) {
+    throw new Error("This file is not a supported invoice JSON.");
+  }
+
+  if (data.type !== "invoice") {
+    importLegacyInvoiceJson(data);
+    return;
+  }
+
+  const importedInvoice = defaultInvoice();
+  importedInvoice.documentTitle = data.document?.title || importedInvoice.documentTitle;
+  importedInvoice.invoiceNo = data.invoiceNo || importedInvoice.invoiceNo;
+  importedInvoice.invoiceDate = data.invoiceDate || importedInvoice.invoiceDate;
+  importedInvoice.buyerOrderNo = data.document?.buyerOrderNo || "";
+  importedInvoice.buyerOrderDate = data.document?.buyerOrderDate || "";
+  importedInvoice.referenceNo = data.document?.referenceNo || "";
+  importedInvoice.deliveryNote = data.document?.deliveryNote || "";
+  importedInvoice.paymentTerms = data.document?.paymentTerms || "";
+  importedInvoice.destination = data.document?.destination || "";
+
+  importedInvoice.sellerName = data.seller?.name || importedInvoice.sellerName;
+  importedInvoice.sellerAddress = data.seller?.address || "";
+  importedInvoice.sellerGstin = data.seller?.gstin || "";
+  importedInvoice.sellerState = data.seller?.state || "";
+  importedInvoice.sellerLicense = data.seller?.license || "";
+  importedInvoice.sellerEmail = data.seller?.email || "";
+  importedInvoice.sellerPan = data.seller?.pan || "";
+
+  importedInvoice.buyerName = data.buyer?.name || "";
+  importedInvoice.buyerAddress = data.buyer?.address || "";
+  importedInvoice.buyerGstin = data.buyer?.gstin || "";
+  importedInvoice.placeOfSupply = data.buyer?.placeOfSupply || "";
+  importedInvoice.buyerContactPerson = data.buyer?.contactPerson || "";
+  importedInvoice.buyerContact = data.buyer?.contact || "";
+
+  importedInvoice.consigneeName = data.consignee?.name || "";
+  importedInvoice.consigneeAddress = data.consignee?.address || "";
+  importedInvoice.consigneeGstin = data.consignee?.gstin || "";
+  importedInvoice.consigneeContactPerson = data.consignee?.contactPerson || "";
+  importedInvoice.consigneeContact = data.consignee?.contact || "";
+
+  importedInvoice.bankHolder = data.bank?.accountHolder || importedInvoice.bankHolder;
+  importedInvoice.bankName = data.bank?.bankName || importedInvoice.bankName;
+  importedInvoice.bankAccountNo = data.bank?.accountNo || importedInvoice.bankAccountNo;
+  importedInvoice.bankBranchIfsc = data.bank?.branchIfsc || importedInvoice.bankBranchIfsc;
+
+  importedInvoice.declaration = data.declaration || importedInvoice.declaration;
+  importedInvoice.footerNote = data.footerNote || importedInvoice.footerNote;
+  importedInvoice.signatoryLabel = data.signatoryLabel || importedInvoice.signatoryLabel;
+  importedInvoice.savedAt = data.savedAt || "";
+  importedInvoice.autoSequence = null;
+
+  importedInvoice.items = Array.isArray(data.items) && data.items.length > 0
+    ? data.items.map((item) => ({
+        productId: "",
+        description: item.description || "",
+        hsn: item.hsn || "",
+        quantity: Number(item.quantity || 0),
+        rate: Number(item.rate || 0),
+        unit: item.unit || "NOS",
+        taxRate: Number(item.taxRate || 0),
+        costRate: Number(item.purchaseCost || 0),
+      }))
+    : [blankItem()];
+
+  appState.currentInvoice = importedInvoice;
+  appState.currentInvoice.selectedCustomerId = "";
+  persistState();
+  rerenderApp();
+  setActiveTab("billing");
+}
+
+function importLegacyInvoiceJson(data) {
+  const importedInvoice = defaultInvoice();
+  importedInvoice.documentTitle = data.documentTitle || importedInvoice.documentTitle;
+  importedInvoice.invoiceNo = data.invoiceNo || importedInvoice.invoiceNo;
+  importedInvoice.invoiceDate = data.invoiceDate || importedInvoice.invoiceDate;
+  importedInvoice.buyerOrderNo = data.buyerOrderNo || "";
+  importedInvoice.buyerOrderDate = data.buyerOrderDate || "";
+  importedInvoice.referenceNo = data.referenceNo || "";
+  importedInvoice.deliveryNote = data.deliveryNote || "";
+  importedInvoice.paymentTerms = data.paymentTerms || "";
+  importedInvoice.destination = data.destination || "";
+
+  importedInvoice.sellerName = data.sellerName || importedInvoice.sellerName;
+  importedInvoice.sellerAddress = data.sellerAddress || "";
+  importedInvoice.sellerGstin = data.sellerGstin || "";
+  importedInvoice.sellerState = data.sellerState || "";
+  importedInvoice.sellerLicense = data.sellerLicense || "";
+  importedInvoice.sellerEmail = data.sellerEmail || "";
+  importedInvoice.sellerPan = data.sellerPan || "";
+
+  importedInvoice.buyerName = data.buyerName || "";
+  importedInvoice.buyerAddress = data.buyerAddress || "";
+  importedInvoice.buyerGstin = data.buyerGstin || "";
+  importedInvoice.placeOfSupply = data.placeOfSupply || "";
+  importedInvoice.buyerContactPerson = data.buyerContactPerson || "";
+  importedInvoice.buyerContact = data.buyerContact || "";
+
+  importedInvoice.consigneeName = data.consigneeName || "";
+  importedInvoice.consigneeAddress = data.consigneeAddress || "";
+  importedInvoice.consigneeGstin = data.consigneeGstin || "";
+  importedInvoice.consigneeContactPerson = data.consigneeContactPerson || "";
+  importedInvoice.consigneeContact = data.consigneeContact || "";
+
+  importedInvoice.bankHolder = data.bankHolder || importedInvoice.bankHolder;
+  importedInvoice.bankName = data.bankName || importedInvoice.bankName;
+  importedInvoice.bankAccountNo = data.bankAccountNo || importedInvoice.bankAccountNo;
+  importedInvoice.bankBranchIfsc = data.bankBranchIfsc || importedInvoice.bankBranchIfsc;
+
+  importedInvoice.declaration = data.declaration || importedInvoice.declaration;
+  importedInvoice.footerNote = data.footerNote || importedInvoice.footerNote;
+  importedInvoice.signatoryLabel = data.signatoryLabel || importedInvoice.signatoryLabel;
+  importedInvoice.savedAt = data.savedAt || "";
+  importedInvoice.autoSequence = null;
+
+  importedInvoice.items = Array.isArray(data.items) && data.items.length > 0
+    ? data.items.map((item) => ({
+        productId: item.productId || "",
+        description: item.description || "",
+        hsn: item.hsn || "",
+        quantity: Number(item.quantity || 0),
+        rate: Number(item.rate || 0),
+        unit: item.unit || "NOS",
+        taxRate: Number(item.taxRate || 0),
+        costRate: Number(item.costRate || 0),
+      }))
+    : [blankItem()];
+
+  appState.currentInvoice = importedInvoice;
+  appState.currentInvoice.selectedCustomerId = data.selectedCustomerId || "";
+  persistState();
+  rerenderApp();
+  setActiveTab("billing");
+}
+
 function createProductFromForm() {
   const name = getValue("productName");
   if (!name) {
@@ -493,27 +764,101 @@ function createProductFromForm() {
     return;
   }
 
-  appState.products.unshift({
-    id: createId("product"),
+  const payload = {
+    id: editingProductId || createId("product"),
     name,
     description: getValue("productDescription") || name,
     hsn: getValue("productHsn"),
     rate: Number(getValue("productRate") || 0),
+    purchaseRate: Number(getValue("productPurchaseRate") || 0),
     unit: getValue("productUnit") || "NOS",
     taxRate: Number(getValue("productTaxRate") || 0),
-  });
+  };
 
+  if (editingProductId) {
+    const index = appState.products.findIndex((entry) => entry.id === editingProductId);
+    if (index >= 0) {
+      appState.products[index] = payload;
+    }
+    appState.currentInvoice.items = appState.currentInvoice.items.map((item) =>
+      item.productId === editingProductId
+        ? {
+            ...item,
+            description: payload.description,
+            hsn: payload.hsn,
+            rate: payload.rate,
+            costRate: payload.purchaseRate,
+            unit: payload.unit,
+            taxRate: payload.taxRate,
+          }
+        : item
+    );
+    appState.currentPurchaseBill.items = appState.currentPurchaseBill.items.map((item) =>
+      item.productId === editingProductId
+        ? {
+            ...item,
+            description: payload.description,
+            rate: payload.purchaseRate,
+            unit: payload.unit,
+          }
+        : item
+    );
+  } else {
+    appState.products.unshift(payload);
+  }
+
+  resetProductEditor();
+  persistState();
+  renderProductCatalog();
+  renderItemsEditor();
+  renderPurchaseItemsEditor();
+  renderPreview();
+  renderPurchasePreview();
+}
+
+function resetProductEditor() {
+  editingProductId = null;
   clearInputs([
     "productName",
     "productDescription",
     "productHsn",
     "productRate",
+    "productPurchaseRate",
     "productUnit",
     "productTaxRate",
   ]);
-  persistState();
-  renderProductCatalog();
-  renderItemsEditor();
+  updateProductEditorUi();
+}
+
+function startProductEdit(productId) {
+  const product = appState.products.find((entry) => entry.id === productId);
+  if (!product) {
+    return;
+  }
+  editingProductId = productId;
+  document.getElementById("productName").value = product.name || "";
+  document.getElementById("productDescription").value = product.description || "";
+  document.getElementById("productHsn").value = product.hsn || "";
+  document.getElementById("productRate").value = product.rate ?? "";
+  document.getElementById("productPurchaseRate").value = product.purchaseRate ?? "";
+  document.getElementById("productUnit").value = product.unit || "";
+  document.getElementById("productTaxRate").value = product.taxRate ?? "";
+  updateProductEditorUi();
+}
+
+function updateProductEditorUi() {
+  const addButton = document.getElementById("addProductBtn");
+  const cancelButton = document.getElementById("cancelProductEditBtn");
+  if (editingProductId) {
+    addButton.textContent = "Update product";
+    cancelButton.style.display = "inline-flex";
+    const product = appState.products.find((entry) => entry.id === editingProductId);
+    productEditHint.textContent = product ? `Editing: ${product.name}` : "Editing product";
+  } else {
+    addButton.textContent = "Add product";
+    cancelButton.style.display = "none";
+    productEditHint.textContent = "";
+  }
 }
 
 function createCustomerFromForm() {
@@ -621,6 +966,16 @@ function syncForm() {
   renderInvoicePatternHint();
 }
 
+function syncPurchaseForm() {
+  const purchase = appState.currentPurchaseBill;
+  document.getElementById("purchaseSupplierName").value = purchase.supplierName || "";
+  document.getElementById("purchaseSupplierContact").value = purchase.supplierContact || "";
+  document.getElementById("purchaseSupplierAddress").value = purchase.supplierAddress || "";
+  document.getElementById("purchaseDate").value = purchase.purchaseDate || "";
+  document.getElementById("purchaseBillNo").value = purchase.purchaseBillNo || "";
+  document.getElementById("purchaseNotes").value = purchase.notes || "";
+}
+
 function renderInvoicePatternHint() {
   invoicePatternHint.textContent = `Pattern: ${formatInvoiceNumber(
     appState.currentInvoice.invoiceDate,
@@ -636,6 +991,15 @@ function setActiveTab(tabName) {
   tabPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.panel === tabName);
   });
+  invoicePreview.classList.toggle("active", tabName !== "purchases");
+  purchasePreview.classList.toggle("active", tabName === "purchases");
+  if (tabName === "purchases") {
+    const totals = buildPurchaseTotals();
+    grandTotalChip.textContent = `Purchase Total ${formatCurrency(totals.grandTotal)}`;
+  } else {
+    const totals = buildTotals();
+    grandTotalChip.textContent = `Grand Total ${formatCurrency(totals.grandTotal)}`;
+  }
 }
 
 function showAuthOverlay() {
@@ -680,6 +1044,7 @@ function renderItemsEditor() {
         item.description = product.description || product.name;
         item.hsn = product.hsn;
         item.rate = Number(product.rate || 0);
+        item.costRate = Number(product.purchaseRate || 0);
         item.unit = product.unit || "NOS";
         item.taxRate = Number(product.taxRate || 0);
       }
@@ -726,19 +1091,35 @@ function renderProductCatalog() {
     card.innerHTML = `
       <div>
         <strong>${escapeHtml(product.name)}</strong>
-        <p>${escapeHtml(product.hsn || "-")} | ${escapeHtml(product.unit || "-")} | ${formatCurrency(product.rate)} | ${formatNumber(product.taxRate)}%</p>
+        <p>${escapeHtml(product.hsn || "-")} | ${escapeHtml(product.unit || "-")} | Sale ${formatCurrency(product.rate)} | Buy ${formatCurrency(product.purchaseRate || 0)} | ${formatNumber(product.taxRate)}%</p>
       </div>
-      <button class="btn mini danger" type="button">Delete</button>
+      <div class="saved-card-actions">
+        <button class="btn mini secondary" type="button">Edit</button>
+        <button class="btn mini danger" type="button">Delete</button>
+      </div>
     `;
-    card.querySelector("button").addEventListener("click", () => {
+    const [editButton, deleteButton] = card.querySelectorAll("button");
+    editButton.addEventListener("click", () => {
+      startProductEdit(product.id);
+      setActiveTab("products");
+    });
+    deleteButton.addEventListener("click", () => {
       appState.products = appState.products.filter((entry) => entry.id !== product.id);
       appState.currentInvoice.items = appState.currentInvoice.items.map((item) =>
         item.productId === product.id ? { ...item, productId: "" } : item
       );
+      appState.currentPurchaseBill.items = appState.currentPurchaseBill.items.map((item) =>
+        item.productId === product.id ? { ...item, productId: "" } : item
+      );
+      if (editingProductId === product.id) {
+        resetProductEditor();
+      }
       persistState();
       renderProductCatalog();
       renderItemsEditor();
+      renderPurchaseItemsEditor();
       renderPreview();
+      renderPurchasePreview();
     });
     productsList.appendChild(card);
   });
@@ -791,19 +1172,300 @@ function saveCurrentInvoice() {
   } else {
     appState.invoices.unshift(snapshot);
   }
-  if (
-    snapshot.autoSequence &&
-    snapshot.autoSequence >= appState.settings.nextInvoiceSequence
-  ) {
-    appState.settings.nextInvoiceSequence = snapshot.autoSequence + 1;
-  }
-  appState.currentInvoice.autoSequence = appState.settings.nextInvoiceSequence;
-  refreshAutoInvoiceNumber();
   persistState();
   renderSavedInvoices();
   syncForm();
   renderPreview();
   window.alert("Invoice saved.");
+}
+
+async function saveInvoiceToCloud() {
+  if (!appState.currentInvoice.invoiceNo.trim()) {
+    assignNextInvoiceNumber();
+    syncForm();
+    renderPreview();
+  }
+
+  const invoiceNo = appState.currentInvoice.invoiceNo.trim();
+  const usedInvoiceNos = appState.settings.cloudSavedInvoiceNos || [];
+  if (usedInvoiceNos.includes(invoiceNo)) {
+    if (appState.currentInvoice.autoSequence) {
+      assignNextInvoiceNumber();
+      syncForm();
+      renderPreview();
+      window.alert(`Invoice no. ${invoiceNo} was already cloud-saved. Moved to the next invoice number.`);
+    } else {
+      window.alert(`Invoice no. ${invoiceNo} was already cloud-saved. Change it or click Auto invoice no.`);
+    }
+    return;
+  }
+
+  const payload = buildCloudInvoicePayload();
+
+  try {
+    const response = await fetch(CLOUD_SAVE_API_PATH, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await response.json();
+    if (!result.ok) {
+      throw new Error(result.error || "Cloud save failed");
+    }
+
+    appState.settings.cloudSavedInvoiceNos = [...usedInvoiceNos, invoiceNo];
+
+    if (
+      appState.currentInvoice.autoSequence &&
+      appState.currentInvoice.autoSequence >= appState.settings.nextInvoiceSequence
+    ) {
+      appState.settings.nextInvoiceSequence = appState.currentInvoice.autoSequence + 1;
+    }
+
+    const sellerFields = pickSellerFields(appState.currentInvoice);
+    appState.currentInvoice = {
+      ...defaultInvoice(),
+      ...sellerFields,
+    };
+    assignNextInvoiceNumber();
+    persistState();
+    rerenderApp();
+    setActiveTab("billing");
+
+    window.alert(`Saved to cloud as ${result.fileName}`);
+  } catch (error) {
+    window.alert(`Cloud save failed: ${error.message}`);
+  }
+}
+
+function buildCloudInvoicePayload() {
+  const invoice = appState.currentInvoice;
+  const totals = buildTotals();
+
+  return {
+    type: "invoice",
+    app: "Vishal Special invoice maker",
+    version: 1,
+    invoiceNo: invoice.invoiceNo,
+    invoiceDate: invoice.invoiceDate,
+    savedAt: new Date().toLocaleString("en-IN"),
+    document: {
+      title: invoice.documentTitle,
+      buyerOrderNo: invoice.buyerOrderNo,
+      buyerOrderDate: invoice.buyerOrderDate,
+      referenceNo: invoice.referenceNo,
+      deliveryNote: invoice.deliveryNote,
+      paymentTerms: invoice.paymentTerms,
+      destination: invoice.destination,
+    },
+    seller: {
+      name: invoice.sellerName,
+      address: invoice.sellerAddress,
+      gstin: invoice.sellerGstin,
+      state: invoice.sellerState,
+      license: invoice.sellerLicense,
+      email: invoice.sellerEmail,
+      pan: invoice.sellerPan,
+    },
+    buyer: {
+      name: invoice.buyerName,
+      address: invoice.buyerAddress,
+      gstin: invoice.buyerGstin,
+      placeOfSupply: invoice.placeOfSupply,
+      contactPerson: invoice.buyerContactPerson,
+      contact: invoice.buyerContact,
+    },
+    consignee: {
+      name: invoice.consigneeName,
+      address: invoice.consigneeAddress,
+      gstin: invoice.consigneeGstin,
+      contactPerson: invoice.consigneeContactPerson,
+      contact: invoice.consigneeContact,
+    },
+    bank: {
+      accountHolder: invoice.bankHolder,
+      bankName: invoice.bankName,
+      accountNo: invoice.bankAccountNo,
+      branchIfsc: invoice.bankBranchIfsc,
+    },
+    items: invoice.items.map((item, index) => ({
+      lineNo: index + 1,
+      description: item.description,
+      hsn: item.hsn,
+      quantity: Number(item.quantity || 0),
+      rate: Number(item.rate || 0),
+      unit: item.unit,
+      taxRate: Number(item.taxRate || 0),
+      amount: Number(item.quantity || 0) * Number(item.rate || 0),
+      purchaseCost: Number(item.costRate || 0),
+    })),
+    totals: {
+      subtotal: totals.subtotal,
+      taxTotal: totals.taxTotal,
+      grandTotal: totals.grandTotal,
+      estimatedProfit: totals.profitTotal,
+      grandTotalInWords: numberToWordsIndian(totals.grandTotal),
+      taxAmountInWords: numberToWordsIndian(totals.taxTotal),
+    },
+    declaration: invoice.declaration,
+    footerNote: invoice.footerNote,
+    signatoryLabel: invoice.signatoryLabel,
+  };
+}
+
+function buildPurchaseTotals() {
+  let grandTotal = 0;
+  const itemRows = appState.currentPurchaseBill.items.map((item, index) => {
+    const quantity = Number(item.quantity || 0);
+    const rate = Number(item.rate || 0);
+    const amount = quantity * rate;
+    grandTotal += amount;
+    return {
+      index: index + 1,
+      description: item.description || "-",
+      quantity,
+      rate,
+      unit: item.unit || "-",
+      amount,
+    };
+  });
+  return { itemRows, grandTotal };
+}
+
+function saveCurrentPurchaseBill() {
+  const snapshot = structuredClone(appState.currentPurchaseBill);
+  snapshot.savedAt = new Date().toLocaleString("en-IN");
+  const existingIndex = appState.purchaseBills.findIndex((entry) => entry.id === snapshot.id);
+  if (existingIndex >= 0) {
+    appState.purchaseBills[existingIndex] = snapshot;
+  } else {
+    appState.purchaseBills.unshift(snapshot);
+  }
+
+  snapshot.items.forEach((item) => {
+    if (!item.productId) {
+      return;
+    }
+    const product = appState.products.find((entry) => entry.id === item.productId);
+    if (product) {
+      product.purchaseRate = Number(item.rate || 0);
+      if (!product.unit && item.unit) {
+        product.unit = item.unit;
+      }
+    }
+  });
+
+  persistState();
+  renderProductCatalog();
+  renderItemsEditor();
+  renderPurchaseSection();
+  window.alert("Purchase bill saved.");
+}
+
+function renderPurchaseItemsEditor() {
+  purchaseItemsEditor.innerHTML = "";
+
+  appState.currentPurchaseBill.items.forEach((item, index) => {
+    const fragment = purchaseItemTemplate.content.cloneNode(true);
+    const card = fragment.querySelector(".item-editor-card");
+    card.querySelector(".item-index").textContent = `Line ${index + 1}`;
+
+    const productSelect = fragment.querySelector(".purchase-product-select");
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = "Select product";
+    productSelect.appendChild(emptyOption);
+    appState.products.forEach((product) => {
+      const option = document.createElement("option");
+      option.value = product.id;
+      option.textContent = product.name;
+      productSelect.appendChild(option);
+    });
+    productSelect.value = item.productId || "";
+    productSelect.addEventListener("change", () => {
+      const product = appState.products.find((entry) => entry.id === productSelect.value);
+      item.productId = productSelect.value;
+      if (product) {
+        item.description = product.description || product.name;
+        item.rate = Number(product.purchaseRate || 0);
+        item.unit = product.unit || "NOS";
+      }
+      persistState();
+      renderPurchaseItemsEditor();
+      renderPurchasePreview();
+    });
+
+    card.querySelectorAll("[data-field]").forEach((field) => {
+      const key = field.getAttribute("data-field");
+      if (key === "productId") {
+        return;
+      }
+      field.value = item[key] ?? "";
+      field.addEventListener("input", (event) => {
+        const value = event.target.value;
+        item[key] = ["quantity", "rate"].includes(key) ? Number(value || 0) : value;
+        persistState();
+        renderPurchasePreview();
+      });
+    });
+
+    card.querySelector(".remove-purchase-item-btn").addEventListener("click", () => {
+      appState.currentPurchaseBill.items.splice(index, 1);
+      if (appState.currentPurchaseBill.items.length === 0) {
+        appState.currentPurchaseBill.items.push(blankPurchaseItem());
+      }
+      persistState();
+      renderPurchaseItemsEditor();
+      renderPurchasePreview();
+    });
+
+    purchaseItemsEditor.appendChild(fragment);
+  });
+}
+
+function renderSavedPurchases() {
+  savedPurchasesList.innerHTML = "";
+  document.getElementById("savedPurchaseCount").textContent = `${appState.purchaseBills.length} saved`;
+
+  if (appState.purchaseBills.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No purchase bills saved yet.";
+    savedPurchasesList.appendChild(empty);
+    return;
+  }
+
+  appState.purchaseBills.forEach((bill) => {
+    const totals = bill.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.rate || 0), 0);
+    const card = document.createElement("div");
+    card.className = "saved-card";
+    card.innerHTML = `
+      <div>
+        <strong>${escapeHtml(bill.purchaseBillNo || "Purchase bill")}</strong>
+        <p>${escapeHtml(bill.supplierName || "-")} | ${escapeHtml(bill.purchaseDate || "-")}</p>
+        <p>${formatCurrency(totals)}</p>
+      </div>
+      <div class="saved-card-actions">
+        <button class="btn mini secondary" type="button">Open</button>
+        <button class="btn mini danger" type="button">Delete</button>
+      </div>
+    `;
+    const [openButton, deleteButton] = card.querySelectorAll("button");
+    openButton.addEventListener("click", () => {
+      appState.currentPurchaseBill = structuredClone(bill);
+      persistState();
+      renderPurchaseSection();
+    });
+    deleteButton.addEventListener("click", () => {
+      appState.purchaseBills = appState.purchaseBills.filter((entry) => entry.id !== bill.id);
+      persistState();
+      renderSavedPurchases();
+    });
+    savedPurchasesList.appendChild(card);
+  });
 }
 
 function renderSavedInvoices() {
@@ -949,15 +1611,19 @@ function buildTotals() {
   const taxMap = new Map();
   let subtotal = 0;
   let taxTotal = 0;
+  let profitTotal = 0;
 
   const itemRows = appState.currentInvoice.items.map((item, index) => {
     const quantity = Number(item.quantity || 0);
     const rate = Number(item.rate || 0);
     const taxRate = Number(item.taxRate || 0);
+    const costRate = Number(item.costRate || 0);
     const amount = quantity * rate;
     const taxAmount = (amount * taxRate) / 100;
+    const profitAmount = quantity * (rate - costRate);
     subtotal += amount;
     taxTotal += taxAmount;
+    profitTotal += profitAmount;
 
     const key = `${item.hsn || "-"}__${taxRate}`;
     const existing = taxMap.get(key) || {
@@ -978,7 +1644,9 @@ function buildTotals() {
       rate,
       unit: item.unit || "-",
       taxRate,
+      costRate,
       amount,
+      profitAmount,
     };
   });
 
@@ -986,6 +1654,7 @@ function buildTotals() {
     itemRows,
     subtotal,
     taxTotal,
+    profitTotal,
     grandTotal: subtotal + taxTotal,
     taxBreakup: [...taxMap.values()],
   };
@@ -998,6 +1667,7 @@ function renderPreview() {
   setText("billingInvoiceNo", invoice.invoiceNo);
   setText("billingInvoiceDate", invoice.invoiceDate);
   setText("billingCustomerName", invoice.buyerName || "Select customer");
+  setText("billingProfit", formatCurrency(totals.profitTotal));
 
   setText("previewDocumentTitle", invoice.documentTitle);
   setText("previewSellerName", invoice.sellerName);
@@ -1073,6 +1743,49 @@ function renderPreview() {
   grandTotalChip.textContent = `Grand Total ${formatCurrency(totals.grandTotal)}`;
 }
 
+function renderPurchasePreview() {
+  const purchase = appState.currentPurchaseBill;
+  const totals = buildPurchaseTotals();
+
+  setText("previewPurchaseCompany", appState.currentInvoice.sellerName);
+  setMultilineText("previewPurchaseCompanyAddress", appState.currentInvoice.sellerAddress);
+  setText("previewPurchaseBillNo", purchase.purchaseBillNo);
+  setText("previewPurchaseDate", purchase.purchaseDate);
+  setText("previewPurchaseSupplier", purchase.supplierName);
+  setText("previewPurchaseSupplierContact", purchase.supplierContact);
+  setText("previewPurchaseSupplierName", purchase.supplierName);
+  setMultilineText("previewPurchaseSupplierAddress", purchase.supplierAddress);
+  setText("previewPurchaseNotes", purchase.notes);
+  setText("previewPurchaseAmountWords", numberToWordsIndian(totals.grandTotal));
+  setText("previewPurchaseGrandTotal", formatCurrency(totals.grandTotal));
+
+  const body = document.getElementById("previewPurchaseItemsBody");
+  body.innerHTML = "";
+  totals.itemRows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.index}</td>
+      <td>${escapeHtml(row.description)}</td>
+      <td>${formatNumber(row.quantity)}</td>
+      <td>${formatCurrency(row.rate)}</td>
+      <td>${escapeHtml(row.unit)}</td>
+      <td>${formatCurrency(row.amount)}</td>
+    `;
+    body.appendChild(tr);
+  });
+
+  if (purchasePreview.classList.contains("active")) {
+    grandTotalChip.textContent = `Purchase Total ${formatCurrency(totals.grandTotal)}`;
+  }
+}
+
+function renderPurchaseSection() {
+  syncPurchaseForm();
+  renderPurchaseItemsEditor();
+  renderSavedPurchases();
+  renderPurchasePreview();
+}
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -1089,7 +1802,9 @@ function rerenderApp() {
   persistState();
   renderCustomerOptions();
   syncForm();
+  renderPurchaseSection();
   renderProductCatalog();
+  updateProductEditorUi();
   renderCustomerCatalog();
   renderSavedInvoices();
   renderItemsEditor();

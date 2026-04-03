@@ -1,4 +1,4 @@
-# Special invoice maker
+# Vishal Special invoice maker
 
 A dependency-free invoice app that runs entirely in the browser.
 
@@ -24,3 +24,4 @@ A dependency-free invoice app that runs entirely in the browser.
 - No backend or paid service is required for this version.
 - Data is stored in your browser on the current device.
 - For production use, confirm tax/legal wording for your business.
+- If you deploy on Vercel and use cloud save, set `GOOGLE_SCRIPT_URL` and `GOOGLE_SCRIPT_SECRET` as Vercel environment variables.

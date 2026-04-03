@@ -43,11 +43,16 @@
         <section class="workspace-actions">
           <button id="newInvoiceBtn" class="btn primary" type="button">New invoice</button>
           <button id="saveInvoiceBtn" class="btn secondary" type="button">Save invoice</button>
+          <button id="saveCloudBtn" class="btn secondary" type="button">Save to Cloud</button>
+          <button id="importJsonBtn" class="btn secondary" type="button">Import JSON</button>
           <button id="downloadPdfBtn" class="btn ghost" type="button">Print / PDF</button>
         </section>
 
+        <input id="importJsonInput" type="file" accept=".json,application/json" hidden />
+
         <nav class="tab-bar" aria-label="App sections">
           <button class="tab-btn active" type="button" data-tab="billing">Billing</button>
+          <button class="tab-btn" type="button" data-tab="purchases">Purchases</button>
           <button class="tab-btn" type="button" data-tab="products">Products</button>
           <button class="tab-btn" type="button" data-tab="customers">Customers</button>
           <button class="tab-btn" type="button" data-tab="invoices">Invoices</button>
@@ -67,6 +72,10 @@
               <div class="stat-card">
                 <span class="tiny-label">Customer</span>
                 <strong id="billingCustomerName"></strong>
+              </div>
+              <div class="stat-card">
+                <span class="tiny-label">Est. profit</span>
+                <strong id="billingProfit"></strong>
               </div>
             </section>
 
@@ -274,11 +283,72 @@
             </details>
           </div>
 
+          <div class="tab-panel" data-panel="purchases">
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Purchase bill</h2>
+                <div class="section-actions">
+                  <button id="newPurchaseBtn" class="btn mini secondary" type="button">New purchase</button>
+                  <button id="savePurchaseBtn" class="btn mini secondary" type="button">Save purchase</button>
+                  <button id="printPurchaseBtn" class="btn mini ghost" type="button">Print purchase</button>
+                </div>
+              </div>
+              <div class="two-col">
+                <label>
+                  Supplier name
+                  <input id="purchaseSupplierName" type="text" />
+                </label>
+                <label>
+                  Purchase date
+                  <input id="purchaseDate" type="text" />
+                </label>
+              </div>
+              <div class="two-col">
+                <label>
+                  Purchase bill no.
+                  <input id="purchaseBillNo" type="text" />
+                </label>
+                <label>
+                  Supplier contact
+                  <input id="purchaseSupplierContact" type="text" />
+                </label>
+              </div>
+              <label>
+                Supplier address
+                <textarea id="purchaseSupplierAddress" rows="2"></textarea>
+              </label>
+              <label>
+                Notes
+                <textarea id="purchaseNotes" rows="2"></textarea>
+              </label>
+            </section>
+
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Purchase items</h2>
+                <button id="addPurchaseItemBtn" class="btn mini" type="button">Add line</button>
+              </div>
+              <div id="purchaseItemsEditor" class="items-editor"></div>
+            </section>
+
+            <section class="form-section">
+              <div class="section-head">
+                <h2>Saved purchase bills</h2>
+                <span id="savedPurchaseCount" class="tiny-label"></span>
+              </div>
+              <div id="savedPurchasesList" class="saved-list"></div>
+            </section>
+          </div>
+
           <div class="tab-panel" data-panel="products">
             <section class="form-section">
               <div class="section-head">
                 <h2>Product catalog</h2>
-                <button id="addProductBtn" class="btn mini secondary" type="button">Add product</button>
+                <div class="section-actions">
+                  <span id="productEditHint" class="tiny-label"></span>
+                  <button id="cancelProductEditBtn" class="btn mini ghost" type="button">Cancel</button>
+                  <button id="addProductBtn" class="btn mini secondary" type="button">Add product</button>
+                </div>
               </div>
               <div class="catalog-form-grid">
                 <label>
@@ -292,6 +362,10 @@
                 <label>
                   Rate
                   <input id="productRate" type="number" min="0" step="0.01" />
+                </label>
+                <label>
+                  Purchase cost
+                  <input id="productPurchaseRate" type="number" min="0" step="0.01" />
                 </label>
                 <label>
                   Unit
@@ -371,7 +445,7 @@
           <span id="grandTotalChip" class="total-chip"></span>
         </div>
 
-        <article id="invoicePreview" class="invoice-sheet">
+        <article id="invoicePreview" class="invoice-sheet preview-article active">
           <header class="invoice-top">
             <div>
               <p id="previewDocumentTitle" class="document-title"></p>
@@ -491,6 +565,63 @@
             <p id="previewFooterNote"></p>
           </div>
         </article>
+
+        <article id="purchasePreview" class="invoice-sheet preview-article">
+          <header class="invoice-top">
+            <div>
+              <p class="document-title">Purchase Bill</p>
+              <h2 id="previewPurchaseCompany" class="seller-name"></h2>
+              <p id="previewPurchaseCompanyAddress"></p>
+            </div>
+            <table class="meta-table">
+              <tbody>
+                <tr><th>Purchase Bill No.</th><td id="previewPurchaseBillNo"></td></tr>
+                <tr><th>Dated</th><td id="previewPurchaseDate"></td></tr>
+                <tr><th>Supplier</th><td id="previewPurchaseSupplier"></td></tr>
+                <tr><th>Contact</th><td id="previewPurchaseSupplierContact"></td></tr>
+              </tbody>
+            </table>
+          </header>
+
+          <section class="party-grid single-column">
+            <div class="party-box">
+              <p class="box-title">Supplier Details</p>
+              <h3 id="previewPurchaseSupplierName"></h3>
+              <p id="previewPurchaseSupplierAddress"></p>
+              <p><strong>Notes:</strong> <span id="previewPurchaseNotes"></span></p>
+            </div>
+          </section>
+
+          <section>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Sl.</th>
+                  <th>Item</th>
+                  <th>Qty</th>
+                  <th>Rate</th>
+                  <th>Unit</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="previewPurchaseItemsBody"></tbody>
+            </table>
+          </section>
+
+          <section class="summary-grid">
+            <div class="words-box">
+              <p class="box-title">Amount Chargeable (in words)</p>
+              <p id="previewPurchaseAmountWords"></p>
+            </div>
+            <div class="totals-box">
+              <table class="totals-table">
+                <tbody>
+                  <tr class="grand-row"><th>Total Purchase Amount</th><td id="previewPurchaseGrandTotal"></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </article>
       </main>
     </div>
 
@@ -528,6 +659,37 @@
           <label>
             Tax %
             <input data-field="taxRate" type="number" min="0" step="0.01" />
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <template id="purchaseItemEditorTemplate">
+      <div class="item-editor-card">
+        <div class="item-card-head">
+          <strong class="item-index"></strong>
+          <button class="btn mini danger remove-purchase-item-btn" type="button">Remove</button>
+        </div>
+        <label>
+          Choose product
+          <select data-field="productId" class="purchase-product-select"></select>
+        </label>
+        <label>
+          Item description
+          <textarea data-field="description" rows="2"></textarea>
+        </label>
+        <div class="item-grid">
+          <label>
+            Quantity
+            <input data-field="quantity" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            Purchase rate
+            <input data-field="rate" type="number" min="0" step="0.01" />
+          </label>
+          <label>
+            Unit
+            <input data-field="unit" type="text" />
           </label>
         </div>
       </div>

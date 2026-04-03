@@ -198,6 +198,14 @@ select {
   display: grid;
 }
 
+.preview-article {
+  display: none;
+}
+
+.preview-article.active {
+  display: block;
+}
+
 .form-section {
   padding: 18px;
   border: 1px solid #d9d9d9;
@@ -251,7 +259,7 @@ textarea {
 
 .summary-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -396,6 +404,10 @@ textarea {
 .party-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 18px 0;
+}
+
+.single-column {
+  grid-template-columns: 1fr;
 }
 
 .party-box,
