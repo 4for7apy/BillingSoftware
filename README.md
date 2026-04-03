@@ -1,4 +1,4 @@
-# Vishal Special invoice maker
+# Special invoice maker
 
 A dependency-free invoice app that runs entirely in the browser.
 
